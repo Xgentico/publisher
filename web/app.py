@@ -142,12 +142,10 @@ def create_app():
         proj = Project.query.get_or_404(project_id)
         return render_template("project_ledger.html", project=proj, rows=rows)
 
-    return app
-
-
-    @app.get("/health")
+    @app.route("/health", methods=["GET", "HEAD"])
     def health():
-        return {"status": "ok"}
-
+        return ("ok", 200, {"Content-Type": "text/plain"})
+   
+    return app
 
 app = create_app()
