@@ -23,6 +23,17 @@ def _env(name: str, default: Optional[str] = None, required: bool = False) -> Op
         raise RuntimeError(f"Missing required environment variable: {name}")
     return val
 
+# ---- NEW small helpers for DB URL handling ----
+def _normalize(url: str) -> str:
+    """Ensure SQLAlchemy-friendly scheme."""
+    return url.replace("postgres://", "postgresql+psycopg2://", 1) if url and url.startswith("postgres://") else url
+
+def _with_sslmode(url: str, sslmode: str = "require") -> str:
+    """Append sslmode param if not present."""
+    if not url:
+        return url
+    return url if "sslmode=" in url else f"{url}{'&' if '?' in url else '?'}sslmode={sslmode}"
+
 class Settings(BaseModel):
     # Project paths
     project_root: Path = Path(__file__).resolve().parent
@@ -42,7 +53,7 @@ class Settings(BaseModel):
     openai_api_key: str = Field(default_factory=lambda: _env("OPENAI_API_KEY", required=True))
     openai_model: str = Field(default_factory=lambda: _env("OPENAI_MODEL", default="gpt-4o-mini"))
 
-    # PostgreSQL
+    # PostgreSQL (legacy pieces still supported as fallback)
     pg_db: Optional[str] = Field(default_factory=lambda: _env("POSTGRES_DB"))
     pg_user: Optional[str] = Field(default_factory=lambda: _env("POSTGRES_USER"))
     pg_password: Optional[str] = Field(default_factory=lambda: _env("POSTGRES_PASSWORD"))
@@ -59,11 +70,23 @@ class Settings(BaseModel):
 
     @property
     def postgres_url(self) -> Optional[str]:
+        """
+        Preferred: DATABASE_URL from env (Render “External Database URL”).
+        Fallback: build from POSTGRES_* vars. Always ensure proper driver and sslmode.
+        """
+        # 1) Prefer single DATABASE_URL
+        db_url = (os.getenv("DATABASE_URL") or "").strip()
+        if db_url:
+            return _with_sslmode(_normalize(db_url), "require")
+
+        # 2) Fallback to individual POSTGRES_* vars
         if all([self.pg_db, self.pg_user, self.pg_password, self.pg_host, self.pg_port]):
-            return (
-                f"postgresql://{self.pg_user}:{self.pg_password}"
+            url = (
+                f"postgresql+psycopg2://{self.pg_user}:{self.pg_password}"
                 f"@{self.pg_host}:{self.pg_port}/{self.pg_db}"
             )
+            return _with_sslmode(url, self.pg_sslmode or "require")
+
         return None
 
 settings = Settings()

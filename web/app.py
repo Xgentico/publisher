@@ -144,4 +144,10 @@ def create_app():
 
     return app
 
+
+    @app.get("/health")
+    def health():
+        return {"status": "ok"}
+
+
 app = create_app()
