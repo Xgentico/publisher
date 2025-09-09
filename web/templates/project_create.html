@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>New Project</h2>
+<form method="post" enctype="multipart/form-data" class="bg-white p-3 rounded shadow-sm">
+  <div class="mb-3">
+    <label class="form-label">Project Name</label>
+    <input name="name" class="form-control" placeholder="e.g., Repurpose: Hospitality → Healthcare">
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Directions (include project type, target industry, or TOC hints)</label>
+    <textarea name="directions" rows="6" class="form-control" placeholder="Example: Repurpose this text for Healthcare leaders. Keep the neuroscience intact; change examples to clinical contexts."></textarea>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Source Text (paste)</label>
+    <textarea name="source_text" rows="10" class="form-control" placeholder="Paste the text to convert here..."></textarea>
+  </div>
+  <div class="mb-3">
+    <label class="form-label">Or Upload .txt/.md</label>
+    <input type="file" name="source_file" accept=".txt,.md" class="form-control">
+  </div>
+  <div class="row">
+    <div class="col-md-4 mb-3">
+      <label class="form-label">Max chars per chunk</label>
+      <input type="number" name="max_chars" class="form-control" value="1200" min="400" max="4000" step="100">
+    </div>
+  </div>
+  <button class="btn btn-primary">Create Project</button>
+</form>
+{% endblock %}
+

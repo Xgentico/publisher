@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ project.name }}</h2>
+
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item"><a class="nav-link" href="#directions">Directions</a></li>
+  <li class="nav-item"><a class="nav-link" href="#text">Text to Convert</a></li>
+  <li class="nav-item"><a class="nav-link" href="#generated">Generated Text</a></li>
+  <li class="nav-item"><a class="nav-link" href="#docx">Generate Word Doc</a></li>
+  <li class="nav-item"><a class="nav-link" href="{{ url_for('project_ledger', project_id=project.id) }}">Sources & Ledger</a></li>
+  <li class="nav-item"><a class="nav-link" href="{{ url_for('projects') }}">Projects</a></li>
+</ul>
+
+<!-- Directions -->
+<section id="directions" class="mb-4">
+  <div class="card">
+    <div class="card-header">Directions</div>
+    <div class="card-body">
+      <form method="post" action="{{ url_for('update_directions', project_id=project.id) }}">
+        <textarea name="directions" rows="8" class="form-control">{{ project.directions or '' }}</textarea>
+        <div class="mt-2 d-flex justify-content-end">
+          <button class="btn btn-primary">Save Directions</button>
+        </div>
+      </form>
+      <div class="text-muted mt-2">
+        <small><strong>Brand voice</strong> is prefilled from <code>prompts/prompt.txt</code> for this project.</small>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Text to Convert -->
+<section id="text" class="mb-4">
+  <div class="card">
+    <div class="card-header">Text to Convert</div>
+    <div class="card-body">
+      <form method="post" action="{{ url_for('rechunk', project_id=project.id) }}">
+        <div class="mb-2">
+          <label class="form-label">Source Text (editable)</label>
+          <textarea name="source_text" rows="8" class="form-control">{{ project.source_text or '' }}</textarea>
+        </div>
+        <div class="row">
+          <div class="col-md-4">
+            <label class="form-label">Max chars per chunk</label>
+            <input name="max_chars" type="number" class="form-control" value="{{ project.max_chars }}" min="400" max="4000" step="100">
+          </div>
+        </div>
+        <div class="mt-2">
+          <button class="btn btn-outline-secondary">Re-chunk</button>
+        </div>
+      </form>
+
+      <hr>
+      <div class="table-responsive">
+        <table class="table table-sm table-striped align-middle">
+          <thead><tr><th>#</th><th>Selected</th><th>Chunk (source)</th><th></th></tr></thead>
+          <tbody>
+          {% for ch in chunks %}
+            <tr>
+              <td class="text-nowrap">{{ ch.order_index + 1 }}</td>
+              <td>
+                <form method="post" action="{{ url_for('toggle_select', project_id=project.id) }}">
+                  <input type="hidden" name="chunk_id" value="{{ ch.id }}">
+                  <button class="btn btn-sm {{ 'btn-success' if ch.selected else 'btn-outline-secondary' }}" title="Toggle select">
+                    {{ '✓' if ch.selected else '○' }}
+                  </button>
+                </form>
+              </td>
+              <td style="max-width: 800px;"><pre class="mb-0 pre-wrap scroll-vert">{{ ch.source_text }}</pre></td>
+              <td>
+                <form method="post" action="{{ url_for('generate_chunk', project_id=project.id, chunk_id=ch.id) }}">
+                  <button class="btn btn-sm btn-primary">Generate</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <form method="post" action="{{ url_for('generate_batch', project_id=project.id) }}">
+        <button class="btn btn-primary">Batch Generate for Selected</button>
+      </form>
+    </div>
+  </div>
+</section>
+
+<!-- Generated Text -->
+<section id="generated" class="mb-4">
+  <div class="card">
+    <div class="card-header">Generated Text (editable)</div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle">
+          <thead><tr><th>#</th><th>Source</th><th>Generated</th><th>Approve</th><th>Save</th></tr></thead>
+          <tbody>
+          {% for ch in chunks %}
+            {% set gen = latest.get(ch.id) %}
+            <tr>
+              <td class="text-nowrap align-top">{{ ch.order_index + 1 }}</td>
+              <td style="max-width: 400px;" class="align-top"><pre class="mb-0 pre-wrap scroll-vert">{{ ch.source_text }}</pre></td>
+              <td class="align-top" style="min-width: 400px;">
+                <form method="post" action="{{ url_for('save_generation', project_id=project.id, chunk_id=ch.id) }}">
+                  <textarea name="generated_text" rows="8" class="form-control scroll-vert" wrap="soft">
+                      {{ gen.generated_text if gen else '' }}
+                  </textarea>
+              </td>
+              <td class="align-top text-center">
+                  <input type="checkbox" name="approved" {% if ch.approved %}checked{% endif %}>
+              </td>
+              <td class="align-top">
+                  <button class="btn btn-sm btn-success">Save</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Generate Word Doc -->
+<section id="docx" class="mb-4">
+  <div class="card">
+    <div class="card-header">Generate Word Doc</div>
+    <div class="card-body">
+      <form method="post" action="{{ url_for('assemble_docx', project_id=project.id) }}">
+        <p class="text-muted">Assembles approved/generated text, writes <code>final.md</code> + <code>sources.json</code>, logs claims to ledger, and returns a DOCX.</p>
+        <button class="btn btn-primary">Assemble & Download DOCX</button>
+      </form>
+    </div>
+  </div>
+</section>
+{% endblock %}

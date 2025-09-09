@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>{{ project.name }} — Sources & Ledger</h2>
+<a class="btn btn-outline-secondary mb-3" href="{{ url_for('project_detail', project_id=project.id) }}">Back to Project</a>
+
+<table class="table table-sm table-striped bg-white">
+  <thead><tr><th>When</th><th>Section</th><th>Source</th><th>Similarity</th><th>Claim (snippet)</th></tr></thead>
+  <tbody>
+  {% for r in rows %}
+    <tr>
+      <td class="text-nowrap">{{ r.created_at.strftime('%Y-%m-%d %H:%M') if r.created_at else '' }}</td>
+      <td style="max-width: 280px;">{{ r.section }}</td>
+      <td>{{ r.source_key }}</td>
+      <td>{{ '%.2f'|format(r.similarity_score) if r.similarity_score is not none else '—' }}</td>
+      <td><pre class="mb-0">{{ r.snippet }}</pre></td>
+    </tr>
+  {% else %}
+    <tr><td colspan="5" class="text-muted">No ledger entries yet. Generate text and export to DOCX first.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
