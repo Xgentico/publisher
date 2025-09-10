@@ -1,4 +1,4 @@
-# web/app.py
+ # web/app.py
 from __future__ import annotations
 import os
 import re
@@ -45,6 +45,21 @@ def create_app():
     app.config["SECRET_KEY"] = os.getenv("FLASK_SECRET_KEY", "dev-secret")  # change in prod
     app.config["SQLALCHEMY_DATABASE_URI"] = settings.postgres_url
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+    # ✅ Robust Postgres connection handling on Render
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 300,
+        "pool_size": 5,
+        "max_overflow": 5,
+        "connect_args": {
+            "sslmode": "require",
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5,
+        },
+    }
 
     # Load default source mapping once (drafts will use it to link [S#])
     app.config["SOURCE_MAP"] = _load_sources_mapping()
@@ -133,7 +148,7 @@ def create_app():
         ch = ProjectChunk.query.filter_by(project_id=project_id, id=chunk_id).first_or_404()
         generate_for_chunk(proj, ch)
         flash(f"Generated text for chunk {ch.order_index+1}.", "success")
-        return redirect(url_for("project_detail", project_id=project_id) + "#generated")
+        return redirect(url_for("project_detail", project_id=proj.id) + "#generated")
 
     # ---- Generation: batch for selected
     @app.post("/projects/<project_id>/generate_batch")
@@ -143,7 +158,7 @@ def create_app():
         for ch in chunks:
             generate_for_chunk(proj, ch)
         flash(f"Generated text for {len(chunks)} chunks.", "success")
-        return redirect(url_for("project_detail", project_id=project_id) + "#generated")
+        return redirect(url_for("project_detail", project_id=proj.id) + "#generated")
 
     # ---- Approve / Edit generated text
     @app.post("/projects/<project_id>/save_generation/<int:chunk_id>")
@@ -162,7 +177,7 @@ def create_app():
         ch.approved = approved
         db.session.commit()
         flash("Saved edits.", "success")
-        return redirect(url_for("project_detail", project_id=project_id) + "#generated")
+        return redirect(url_for("project_detail", project_id=proj.id) + "#generated")
 
     # ---- Assemble + download DOCX
     @app.post("/projects/<project_id>/assemble")
@@ -206,3 +221,4 @@ def create_app():
     return app
 
 app = create_app()
+
